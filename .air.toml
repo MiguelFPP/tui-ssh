@@ -1,0 +1,16 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/tui-ssh ./cmd/tui-ssh"
+bin = "./tmp/tui-ssh"
+include_ext = ["go"]
+exclude_dir = ["tmp", "vendor", "testdata"]
+delay = 300
+stop_on_error = true
+
+[log]
+time = true
+
+[misc]
+clean_on_exit = true

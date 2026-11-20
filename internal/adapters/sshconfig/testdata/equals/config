@@ -1,0 +1,3 @@
+Host=equals
+    HostName=equals.example.com
+    User=ops

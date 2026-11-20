@@ -1,0 +1,16 @@
+Host web
+    HostName 10.0.0.1
+    User deploy
+    Port 22
+
+Host db db-replica
+    HostName 10.0.0.2
+    User postgres
+
+# A wildcard block documents defaults and is not connectable.
+Host prod-*
+    User root
+    IdentityFile ~/.ssh/id_prod
+
+Host !bastion
+    User nobody

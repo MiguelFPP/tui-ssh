@@ -1,0 +1,12 @@
+{
+  "theme": "catppuccin-mocha",
+  "list_width": 42,
+  "list_collapsed": false,
+  "detail_layout": "split",
+  "keys": {
+    "help": ["h"],
+    "host_down": ["n"],
+    "tag_next": ["g"],
+    "tunnel_logs": ["o"]
+  }
+}

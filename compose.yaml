@@ -1,0 +1,83 @@
+name: tui-ssh
+
+services:
+  dev:
+    build:
+      context: .
+      target: dev
+    image: tui-ssh:dev
+    init: true
+    stdin_open: true
+    tty: true
+    working_dir: /src
+    environment:
+      TERM: ${TERM:-xterm-256color}
+    volumes:
+      - .:/src
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+    command: ["air", "-c", ".air.toml"]
+
+  # Opt-in service: mounting ~/.ssh exposes the private keys and the agent to the
+  # container, so it lives in its own profile and `dev` never mounts them. The
+  # host network keeps the forwarded ports on the host, not inside the container.
+  dev-ssh:
+    profiles: ["ssh"]
+    build:
+      context: .
+      target: dev
+    image: tui-ssh:dev
+    init: true
+    stdin_open: true
+    tty: true
+    working_dir: /src
+    network_mode: host
+    environment:
+      TERM: ${TERM:-xterm-256color}
+      SSH_AUTH_SOCK: /ssh-agent
+      TUI_SSH_RUNTIME_DIR: /runtime
+    volumes:
+      - .:/src
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+      - ${HOME}/.ssh:/root/.ssh:ro
+      - ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent
+      - ${XDG_RUNTIME_DIR:-/tmp}/tui-ssh:/runtime
+    command: ["air", "-c", ".air.toml"]
+
+  app:
+    profiles: ["prod"]
+    build:
+      context: .
+      target: runtime
+    image: tui-ssh:latest
+    init: true
+    stdin_open: true
+    tty: true
+    environment:
+      TERM: ${TERM:-xterm-256color}
+
+  app-ssh:
+    profiles: ["prod-ssh"]
+    build:
+      context: .
+      target: runtime
+    image: tui-ssh:latest
+    init: true
+    stdin_open: true
+    tty: true
+    network_mode: host
+    user: root
+    environment:
+      TERM: ${TERM:-xterm-256color}
+      SSH_AUTH_SOCK: /ssh-agent
+      TUI_SSH_RUNTIME_DIR: /runtime
+    volumes:
+      - ${HOME}/.ssh:/root/.ssh:ro
+      - ${HOME}/.config/tui-ssh:/root/.config/tui-ssh
+      - ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent
+      - ${XDG_RUNTIME_DIR:-/tmp}/tui-ssh:/runtime
+
+volumes:
+  go-mod-cache:
+  go-build-cache:

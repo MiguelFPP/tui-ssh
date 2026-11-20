@@ -1,0 +1,4 @@
+Include loop
+
+Host from-loop
+    HostName loop.example.com

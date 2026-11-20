@@ -1,0 +1,11 @@
+.git
+.gitignore
+tmp
+bin
+dist
+*.log
+.env
+README.md
+compose.yaml
+Makefile
+scripts

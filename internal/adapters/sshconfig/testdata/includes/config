@@ -1,0 +1,7 @@
+# The main file includes two files and defines one host of its own.
+Include conf.d/*.conf
+
+Host own
+    HostName own.example.com
+
+Include recursive/second

@@ -1,0 +1,16 @@
+Host quoted
+    HostName "quoted.example.com"
+    User "op user"
+
+Host commented
+    HostName host.example.com # a trailing comment
+    # a full comment line
+
+Match host internal
+    User ignored
+
+Match all
+    ServerAliveInterval 30
+
+Host after-match
+    HostName after.example.com
