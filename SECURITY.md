@@ -14,10 +14,13 @@ as the report is triaged.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
+| 0.1.1+  | :white_check_mark: |
+| 0.1.0   | :x:                |
 | < 0.1   | :x:                |
 
-Only the latest release line receives security fixes.
+Only the latest release line receives security fixes. **0.1.0** does not: it is
+vulnerable to the terminal escape injection and to the tunnel manifest injection
+described below. Upgrade to 0.1.1 or later.
 
 ## What tui-ssh reads
 

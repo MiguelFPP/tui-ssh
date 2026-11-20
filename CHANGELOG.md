@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1]
+
 ### Security
 
 - Control characters (C0, C1 and DEL) are stripped from every external value before
