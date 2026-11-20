@@ -3,4 +3,8 @@ bin/
 dist/
 *.log
 .env
-tui-ssh
+
+# The compiled binary, addressed explicitly: a bare `tui-ssh` pattern would also
+# match the cmd/tui-ssh package directory and silently drop main.go from the repo.
+/tui-ssh
+/tui-ssh.exe
