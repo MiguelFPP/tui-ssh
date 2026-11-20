@@ -50,9 +50,11 @@ func (m *Model) SetBounds(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 }
 
-// SetHost replaces the selected host and drops the stale resolution.
+// SetHost replaces the selected host and drops the stale resolution. The values are
+// stripped of control characters here: the panel renders them verbatim and they come
+// from the ssh configuration, which is external text.
 func (m *Model) SetHost(host domain.Host) {
-	m.host = host
+	m.host = sanitizeHost(host)
 	m.hasHost = true
 	m.resolved = domain.Resolved{}
 	m.resolve = false
@@ -66,10 +68,49 @@ func (m *Model) Clear() {
 	m.resolve = false
 }
 
-// SetResolved stores the effective resolution of the selected host.
+// SetResolved stores the effective resolution of the selected host. Its fields come
+// from `ssh -G`, which is external text too, so they are stripped before rendering.
 func (m *Model) SetResolved(resolved domain.Resolved) {
+	resolved.Host = sanitizeResolved(resolved.Host)
 	m.resolved = resolved
 	m.resolve = true
+}
+
+// sanitizeHost strips the control characters from every value the panel renders.
+func sanitizeHost(host domain.Host) domain.Host {
+	host.Alias = domain.StripControlChars(host.Alias)
+
+	tags := make([]string, len(host.Tags))
+	for i, tag := range host.Tags {
+		tags[i] = domain.StripControlChars(tag)
+	}
+	host.Tags = tags
+
+	declared := make([]domain.Directive, len(host.Declared))
+	for i, directive := range host.Declared {
+		declared[i] = domain.Directive{
+			Key:   domain.StripControlChars(directive.Key),
+			Value: domain.StripControlChars(directive.Value),
+			Line:  directive.Line,
+		}
+	}
+	host.Declared = declared
+
+	return host
+}
+
+// sanitizeResolved strips the control characters from the resolved fields.
+func sanitizeResolved(resolved domain.ResolvedHost) domain.ResolvedHost {
+	resolved.Alias = domain.StripControlChars(resolved.Alias)
+	resolved.HostName = domain.StripControlChars(resolved.HostName)
+	resolved.User = domain.StripControlChars(resolved.User)
+	resolved.ProxyJump = domain.StripControlChars(resolved.ProxyJump)
+
+	for index, file := range resolved.IdentityFiles {
+		resolved.IdentityFiles[index] = domain.StripControlChars(file)
+	}
+
+	return resolved
 }
 
 // Host returns the selected host.

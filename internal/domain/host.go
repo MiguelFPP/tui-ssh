@@ -146,7 +146,7 @@ func ValidateAlias(alias string) error {
 	}
 
 	for _, r := range trimmed {
-		if unicode.IsSpace(r) || r < ' ' || r == 0x7f {
+		if unicode.IsSpace(r) || isControl(r) {
 			return fmt.Errorf("%w: el alias contiene espacios o caracteres de control", ErrInvalidArgument)
 		}
 	}

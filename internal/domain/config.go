@@ -28,9 +28,11 @@ func (r ConfigReport) OK() bool {
 	return len(r.Files) > 0 && (r.Err == nil || r.Hosts > 0)
 }
 
-// AddWarning records a warning once, keeping the report deterministic.
+// AddWarning records a warning once, keeping the report deterministic. Warnings
+// embed paths and values read from the configuration, so the control characters are
+// stripped before the panel renders them.
 func (r *ConfigReport) AddWarning(format string, args ...any) {
-	message := fmt.Sprintf(format, args...)
+	message := StripControlChars(fmt.Sprintf(format, args...))
 	for _, existing := range r.Warnings {
 		if existing == message {
 			return
@@ -110,7 +112,7 @@ func NormalizeTag(raw string) (string, error) {
 	}
 
 	for _, r := range tag {
-		if r < ' ' || r == 0x7f {
+		if isControl(r) {
 			return "", fmt.Errorf("%w: la etiqueta contiene caracteres de control", ErrInvalidArgument)
 		}
 	}

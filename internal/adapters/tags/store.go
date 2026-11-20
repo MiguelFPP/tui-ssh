@@ -76,6 +76,13 @@ func (s *Store) Tags(ctx context.Context) (domain.TagIndex, error) {
 	}
 
 	for alias, list := range raw {
+		// tags.json is external text: another local user or a synced dotfile bundle
+		// may have written it, and the alias is matched against the live hosts and
+		// its tags are rendered as chips in the list.
+		if domain.ValidateAlias(alias) != nil {
+			continue
+		}
+
 		tags, err := domain.NormalizeTags(list)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s: %s: %w", domain.ErrConfigInvalid, s.files.Tags, alias, err)
