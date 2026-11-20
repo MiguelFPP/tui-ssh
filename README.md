@@ -5,7 +5,7 @@ lista los hosts configurados, los filtra por etiquetas, abre sesiones SSH y leva
 port-forwarding en segundo plano mostrando cuáles están activos. Funciona con
 teclado y ratón.
 
-Estado actual: **v0.1.0**. La TUI lista hosts reales, resuelve su configuración
+Estado actual: **v0.1.1**. La TUI lista hosts reales, resuelve su configuración
 efectiva con `ssh -G`, abre sesiones interactivas y gestiona túneles locales,
 remotos y dinámicos con re-adopción al reabrir.
 
