@@ -1,0 +1,41 @@
+# Dependabot keeps the pinned modules and the release tooling current.
+#
+# The project ships only Bubble Tea, Lip Gloss and Bubbles, so the Go ecosystem
+# entry covers essentially the whole dependency surface. Actions are grouped into a
+# single PR because they are bumped together with the release workflow.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      charm:
+        patterns:
+          - "charm.land/*"
+      golang-x:
+        patterns:
+          - "golang.org/x/*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
