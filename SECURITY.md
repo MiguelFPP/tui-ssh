@@ -70,15 +70,39 @@ sends signals to a PID it guessed. A master that dies leaves its entry as
 
 ## Handling of untrusted input
 
-- Every alias is validated before it reaches `ssh`: no spaces, no control
+Every value that comes from outside the process is treated as untrusted: the ssh
+configuration, the tag store, the tunnel manifest and the stderr of a master.
+
+- **Control characters.** `domain.StripControlChars` removes C0, C1 and DEL from
+  every external value before it is rendered (the host list, the detail panel, the
+  config viewer, the tunnel logs and the warnings) or handed to another binary.
+  ESC and BEL cannot reach the terminal as a sequence, so an alias such as
+  `evil\x1b]52;c;…\x07` is displayed as inert text instead of writing the clipboard.
+  The validators (`ValidateAlias`, `NormalizeTag`, `ForwardSpec.Validate`) reject
+  the same range, so a value that carries it never becomes an ssh argument either.
+- **Every alias is validated** before it reaches `ssh`: no spaces, no control
   characters, no leading dash. That blocks a value such as `-oProxyCommand=...`
   from being treated as an option.
-- Forward specifications are parsed into structured fields (direction, addresses,
-  ports) and rendered back into the single argument `-L`/`-R`/`-D` expects.
-- `ssh` and the external editor are executed with argument lists, never through a
-  shell.
-- The configuration, the report, the tunnel logs and the buffers are bounded by
-  size and line limits.
+- **The tunnel manifest is untrusted.** It lives in a runtime directory that a
+  shared `/tmp` or a stale XDG fallback may leave writable for another local user,
+  so every entry is validated before it is adopted: the ID must stay a plain
+  basename inside the state directory, the host must pass `ValidateAlias` and the
+  forward specification must pass `Validate`. An entry that fails is skipped.
+- **Forward specifications** are parsed into structured fields (direction,
+  addresses, ports) and rendered back into the single argument `-L`/`-R`/`-D`
+  expects.
+- **`ssh` and the external editor are executed with argument lists**, never through
+  a shell.
+- **The configuration, the report, the tunnel logs and the buffers are bounded** by
+  size and line limits, as are the parsed `Include` depth and the host count.
+
+## Control socket fallback
+
+A `ControlPath` cannot exceed ~108 bytes, so a deep runtime directory falls back to
+a subdirectory of the system temp directory. Because that directory is shared, the
+fallback is created with `0700` and an existing one is only adopted when it is a
+real directory — not a symlink — that no other user can write to. Otherwise the
+fallback is refused and the tunnel reports why.
 
 ## Dependency updates
 

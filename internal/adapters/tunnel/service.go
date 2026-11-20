@@ -312,7 +312,10 @@ func (s *Service) Logs(ctx context.Context, id string) (domain.TunnelLog, error)
 		log.Truncated = true
 	}
 
-	log.Lines = lines
+	// The log is the stderr of a remote daemon, so it is untrusted text rendered in
+	// a viewport: the control characters are dropped here and never reach the
+	// terminal as a sequence.
+	log.Lines = domain.StripControlLines(lines)
 
 	return log, nil
 }
@@ -391,9 +394,42 @@ func (s *Service) socketPath(id string) (string, error) {
 	dirSum := sha256.Sum256([]byte(s.runtimeDir))
 	idSum := sha256.Sum256([]byte(id))
 
-	return filepath.Join(os.TempDir(),
-		"tui-ssh-"+hex.EncodeToString(dirSum[:4]),
-		hex.EncodeToString(idSum[:8])+".sock"), nil
+	// The system temp directory is shared: the fallback subdirectory is created here,
+	// before the socket, and a pre-existing one is only adopted when it is a directory
+	// this user owns and nobody else can write to. Otherwise another local user could
+	// plant it and take the socket, which is control over the master.
+	fallback := filepath.Join(os.TempDir(), "tui-ssh-"+hex.EncodeToString(dirSum[:4]))
+	if err := ensurePrivateDir(fallback); err != nil {
+		return "", err
+	}
+
+	return filepath.Join(fallback, hex.EncodeToString(idSum[:8])+".sock"), nil
+}
+
+// ensurePrivateDir creates dir with 0700, or verifies that an existing one is a
+// directory owned by this process and not writable by anybody else.
+func ensurePrivateDir(dir string) error {
+	// Lstat, not Stat: following a symlink would adopt the directory it points at,
+	// so a symlink planted in the shared temp is refused before its target is read.
+	info, err := os.Lstat(dir)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return fmt.Errorf("%w: no se pudo crear %s: %w", domain.ErrPermissionDenied, dir, err)
+		}
+
+		return nil
+	case err != nil:
+		return fmt.Errorf("%w: %s: %w", domain.ErrPermissionDenied, dir, err)
+	case info.Mode()&os.ModeSymlink != 0:
+		return fmt.Errorf("%w: %s es un enlace simbólico", domain.ErrPermissionDenied, dir)
+	case !info.IsDir():
+		return fmt.Errorf("%w: %s no es un directorio", domain.ErrPermissionDenied, dir)
+	case info.Mode().Perm()&0o022 != 0:
+		return fmt.Errorf("%w: %s es escribible por otros usuarios (%04o)", domain.ErrPermissionDenied, dir, info.Mode().Perm())
+	}
+
+	return nil
 }
 
 // logPath is the file that receives the stderr of the master.
@@ -627,6 +663,14 @@ func (s *Service) load(ctx context.Context) error {
 		if _, ok := s.get(entry.ID); ok {
 			continue
 		}
+		// The manifest is a trust boundary: it lives in a runtime directory that a
+		// shared /tmp or a stale XDG fallback may leave writable for another local
+		// user. Its ID names a file inside the state directory and its host becomes
+		// an argument of ssh, so an entry that does not validate is skipped instead
+		// of adopted.
+		if !validManifestEntry(entry) {
+			continue
+		}
 
 		direction, err := domain.ParseDirection(entry.Direction)
 		if err != nil {
@@ -639,6 +683,11 @@ func (s *Service) load(ctx context.Context) error {
 			Bind:      domain.BindAddr{Addr: entry.BindAddr, Port: entry.BindPort},
 			Target:    domain.TargetAddr{Host: entry.TargetHost, Port: entry.TargetPort},
 		}.Normalize()
+		// The spec is rendered back into -L/-R/-D later, so it has to satisfy the
+		// same invariants Start demands before it becomes an ssh argument.
+		if err := spec.Validate(); err != nil {
+			continue
+		}
 
 		socket, err := s.socketPath(entry.ID)
 		if err != nil {
@@ -659,6 +708,22 @@ func (s *Service) load(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// validManifestEntry reports whether an on-disk entry may be adopted. The ID names
+// a file inside the state directory, so it must stay a plain basename, and the host
+// becomes an argument of ssh, so it must pass the same validation as any other
+// alias. Failing closed here is what keeps a tampered manifest from injecting an
+// ssh option or escaping the state directory.
+func validManifestEntry(entry manifestEntry) bool {
+	if strings.TrimSpace(entry.ID) == "" || filepath.Base(entry.ID) != entry.ID {
+		return false
+	}
+	if strings.ContainsAny(entry.ID, `/\`) || entry.ID == "." || entry.ID == ".." {
+		return false
+	}
+
+	return domain.ValidateAlias(entry.Host) == nil
 }
 
 // save writes the manifest with only the running tunnels.

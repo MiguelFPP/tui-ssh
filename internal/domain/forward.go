@@ -81,7 +81,7 @@ func (s ForwardSpec) Validate() error {
 		return fmt.Errorf("%w: el nombre del forward supera %d bytes", ErrInvalidArgument, MaxForwardNameBytes)
 	}
 	for _, r := range s.Name {
-		if unicode.IsSpace(r) || r < ' ' || r == 0x7f {
+		if unicode.IsSpace(r) || isControl(r) {
 			return fmt.Errorf("%w: el nombre del forward contiene espacios o caracteres de control", ErrInvalidArgument)
 		}
 	}
@@ -89,8 +89,8 @@ func (s ForwardSpec) Validate() error {
 	if s.Bind.Port < 0 || s.Bind.Port > 65535 {
 		return fmt.Errorf("%w: el puerto de escucha debe estar entre 0 y 65535", ErrInvalidArgument)
 	}
-	if strings.ContainsAny(s.Bind.Addr, " \t") {
-		return fmt.Errorf("%w: la dirección de escucha contiene espacios", ErrInvalidArgument)
+	if HasControlChars(s.Bind.Addr) || strings.ContainsAny(s.Bind.Addr, " \t") {
+		return fmt.Errorf("%w: la dirección de escucha contiene espacios o caracteres de control", ErrInvalidArgument)
 	}
 
 	if s.Direction == ForwardDynamic {
@@ -114,8 +114,8 @@ func (s ForwardSpec) Validate() error {
 	switch {
 	case target == "":
 		return fmt.Errorf("%w: falta el host de destino", ErrInvalidArgument)
-	case strings.ContainsAny(target, " \t"):
-		return fmt.Errorf("%w: el host de destino contiene espacios", ErrInvalidArgument)
+	case HasControlChars(target), strings.ContainsAny(target, " \t"):
+		return fmt.Errorf("%w: el host de destino contiene espacios o caracteres de control", ErrInvalidArgument)
 	case s.Target.Port < 1 || s.Target.Port > 65535:
 		return fmt.Errorf("%w: el puerto de destino debe estar entre 1 y 65535", ErrInvalidArgument)
 	}

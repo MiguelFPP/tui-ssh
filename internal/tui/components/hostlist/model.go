@@ -94,8 +94,8 @@ func (m *Model) SetHosts(hosts []domain.Host) {
 		anchor = host.Alias
 	}
 
-	m.hosts = hosts
-	m.tags = collectTags(hosts)
+	m.hosts = sanitizeHosts(hosts)
+	m.tags = collectTags(m.hosts)
 	if m.tagFilter != "" && !containsTag(m.tags, m.tagFilter) {
 		m.tagFilter = ""
 	}
@@ -634,6 +634,37 @@ func hostBadges(host domain.Host) string {
 	}
 
 	return "⇄" + itoa(len(host.Forwards))
+}
+
+// sanitizeHosts drops the control characters of every value the list renders. The
+// adapters already strip them at the trust boundary; repeating it here keeps the
+// component safe on its own, because a Host can be built by any caller and its
+// alias, tags and directives all reach the terminal verbatim.
+func sanitizeHosts(hosts []domain.Host) []domain.Host {
+	out := make([]domain.Host, len(hosts))
+	for index, host := range hosts {
+		host.Alias = domain.StripControlChars(host.Alias)
+
+		tags := make([]string, len(host.Tags))
+		for i, tag := range host.Tags {
+			tags[i] = domain.StripControlChars(tag)
+		}
+		host.Tags = tags
+
+		declared := make([]domain.Directive, len(host.Declared))
+		for i, directive := range host.Declared {
+			declared[i] = domain.Directive{
+				Key:   domain.StripControlChars(directive.Key),
+				Value: domain.StripControlChars(directive.Value),
+				Line:  directive.Line,
+			}
+		}
+		host.Declared = declared
+
+		out[index] = host
+	}
+
+	return out
 }
 
 func collectTags(hosts []domain.Host) []string {

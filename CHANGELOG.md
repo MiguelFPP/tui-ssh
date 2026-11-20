@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+
+- Control characters (C0, C1 and DEL) are stripped from every external value before
+  it is rendered, so an alias, a tag, a directive or a line of a master log can no
+  longer reach the terminal as an escape sequence. OSC 52, BEL and CSI are shown as
+  inert text.
+- `ValidateAlias`, `NormalizeTag` and `ForwardSpec.Validate` reject the same range,
+  which closes the gap where only C0 was checked and U+009B passed as an alias.
+- Manifest entries are validated before they are adopted: the ID must stay a plain
+  basename inside the state directory and the host and the forward specification
+  must pass the same checks `Start` applies. A tampered manifest can no longer
+  inject an ssh option or escape the state directory.
+- The tag store skips aliases that do not validate, instead of indexing them.
+- The control socket fallback under the system temp directory is created with `0700`
+  and refuses a pre-existing directory that another user can write to or that is a
+  symlink.
+
 ## [0.1.0]
 
 ### Added

@@ -97,7 +97,10 @@ func (s *Service) Source(ctx context.Context) (domain.ConfigSource, error) {
 		source.Truncated = true
 	}
 
-	source.Lines = lines
+	// The raw text is rendered verbatim, so the control characters of the file are
+	// dropped here: the viewer shows what the file says, never a sequence the
+	// terminal would execute.
+	source.Lines = domain.StripControlLines(lines)
 
 	return source, nil
 }
@@ -245,7 +248,7 @@ func (s *Service) scanFile(
 		default:
 			if current != nil {
 				if len(current.Declared) < domain.MaxDirectives {
-					current.Declared = append(current.Declared, domain.Directive{Key: key, Value: value, Line: lineNumber})
+					current.Declared = append(current.Declared, sanitizeDirective(domain.Directive{Key: key, Value: value, Line: lineNumber}))
 				}
 			} else if matchAll {
 				// Directives of a Match all block are shared by every host: they are
@@ -389,9 +392,33 @@ func (s *Service) read(path string) ([]byte, error) {
 	return data, nil
 }
 
+// sanitizePatterns removes the control characters from every pattern value. The
+// configuration is external text — it may come from a dotfile bundle, a template or
+// another tenant — and its values reach the terminal and, for a connectable alias,
+// an ssh argument. Stripping at parse time keeps both gates closed without touching
+// the read-only file.
+func sanitizePatterns(patterns []domain.Pattern) []domain.Pattern {
+	for index, pattern := range patterns {
+		patterns[index].Value = domain.StripControlChars(pattern.Value)
+	}
+
+	return patterns
+}
+
+// sanitizeDirective removes the control characters from the key and the value of
+// one directive, which is what the detail panel renders verbatim.
+func sanitizeDirective(directive domain.Directive) domain.Directive {
+	directive.Key = domain.StripControlChars(directive.Key)
+	directive.Value = domain.StripControlChars(directive.Value)
+
+	return directive
+}
+
 // newHost builds the Host for one Host line, keeping the first literal alias as
 // the connectable name and dropping the wildcard and negated patterns.
 func newHost(patterns []domain.Pattern, file string, line int) *domain.Host {
+	patterns = sanitizePatterns(patterns)
+
 	host := &domain.Host{SourceFile: file, SourceLine: line, Patterns: patterns}
 	host.Alias = firstLiteral(patterns)
 
